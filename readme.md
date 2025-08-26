@@ -8,7 +8,6 @@ export DEVTRON_URL=https://<devtron-url>
 export DEVTRON_TOKEN=<your-api-token>
 ````
 
----
 
 ## 2. Create Application
 
@@ -32,8 +31,6 @@ curl "$DEVTRON_URL/orchestrator/app" \
 
 Save the **`appId`** from the response.
 
----
-
 ## 3. Save Git Repository
 
 ```bash
@@ -54,8 +51,6 @@ curl "$DEVTRON_URL/orchestrator/app/material" \
 ```
 
 Save the **`gitMaterialId`** from the response.
-
----
 
 ## 4. Save Build Configuration
 
@@ -86,11 +81,9 @@ curl "$DEVTRON_URL/orchestrator/app/ci-pipeline" \
 }'
 ```
 
----
-
 ## 5. Deployment Template
 
-### a. Get Deployment Chart ID
+#### a. Get Deployment Chart ID
 
 ```bash
 curl -s "$DEVTRON_URL/orchestrator/chartref/autocomplete/<AppId>" \
@@ -100,9 +93,7 @@ curl -s "$DEVTRON_URL/orchestrator/chartref/autocomplete/<AppId>" \
 
 Save the **`chartRefId`**.
 
----
-
-### b. Get Base Deployment Template
+#### b. Get Base Deployment Template
 
 ```bash
 curl -s "$DEVTRON_URL/orchestrator/app/template/<AppId>/<ChartId>" \
@@ -110,18 +101,69 @@ curl -s "$DEVTRON_URL/orchestrator/app/template/<AppId>/<ChartId>" \
   | jq .result.globalConfig > default-values.json
 ```
 
----
-
-### c. Save the Deployment Template
-
+#### c. Edit The JSON
 ```bash
 jq '. + {resourceName: "BaseDeploymentTemplate"} 
    | . + {valuesOverride: .defaultAppOverride} 
    | . + {appId: <AppId>, chartRefId: <ChartId>}' default-values.json > output.json
 
+```
+#### d. Save the Deployment Template
+
+```bash
 curl "$DEVTRON_URL/orchestrator/app/template" \
   -H "token: $DEVTRON_TOKEN" \
   -X POST \
   --http2 \
   -d @output.json
 ```
+
+
+## 6. Create CI Pipelines (CI_JOB)
+
+```bash
+curl "$DEVTRON_URL/orchestrator/app/ci-pipeline/patch" \
+  -H "token: $DEVTRON_TOKEN" \
+  --data-raw '{
+    "appId": <AppId>,
+    "appWorkflowId": 0,
+    "action": 0,
+    "ciPipeline": {
+        "active": true,
+        "ciMaterial": [
+            {
+                "gitMaterialId": <GitMaterialId>,
+                "id": 0,
+                "source": {
+                    "type": "SOURCE_TYPE_BRANCH_FIXED",
+                    "value": "main",
+                    "regex": ""
+                }
+            }
+        ],
+        "dockerArgs": {},
+        "externalCiConfig": {},
+        "id": 0,
+        "isExternal": false,
+        "isManual": true,
+        "name": "prod-workflow",
+        "linkedCount": 0,
+        "scanEnabled": false,
+        "pipelineType": "CI_JOB",
+        "customTag": {
+            "tagPattern": "",
+            "counterX": 0
+        },
+        "workflowCacheConfig": {
+            "type": "INHERIT",
+            "value": true,
+            "globalValue": true
+        },
+        "preBuildStage": {},
+        "postBuildStage": {},
+        "dockerConfigOverride": {}
+    }
+}'
+```
+
+---
